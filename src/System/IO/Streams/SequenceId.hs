@@ -13,14 +13,14 @@ import qualified System.IO.Streams   as Streams
 -- Example:
 --
 -- @
--- ghci> 'System.IO.Streams.fromList' [1..10 :: 'Data.Word32'] >>= 'sequenceIdInputStream' 0 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
+-- ghci> 'System.IO.Streams.fromList' [1..10 :: 'Data.SequenceId.SequenceId'] >>= 'sequenceIdInputStream' 0 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
 -- [1,2,3,4,5,6,7,8,9,10]
 --
--- ghci> 'System.IO.Streams.fromList' [5..10 :: 'Data.Word32'] >>= 'sequenceIdInputStream' 0 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
--- *** Exception: user error (SequenceIdDropped (SequenceIds {lastSeqId = 0, currSeqId = 5}))
+-- ghci> 'System.IO.Streams.fromList' [5..10 :: 'Data.SequenceId.SequenceId'] >>= 'sequenceIdInputStream' 0 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
+-- *** Exception: user error ('Data.SequenceId.SequenceIdDropped' ('Data.SequenceId.SequenceIds' {lastSeqId = 0, currSeqId = 5}))
 --
--- ghci> 'System.IO.Streams.fromList' [5..10 :: 'Data.Word32'] >>= 'sequenceIdInputStream' 1 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
--- *** Exception: user error (SequenceIdDuplicated (SequenceIds {lastSeqId = 1, currSeqId = 1}))
+-- ghci> 'System.IO.Streams.fromList' [5..10 :: 'Data.SequenceId.SequenceId'] >>= 'sequenceIdInputStream' 1 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
+-- *** Exception: user error ('Data.SequenceId.SequenceIdDuplicated' ('Data.SequenceId.SequenceIds' {lastSeqId = 1, currSeqId = 1}))
 -- @
 sequenceIdInputStream :: SequenceId                   -- ^ Initial sequence ID
                       -> (a -> SequenceId)            -- ^ Function applied to each element of the stream to get the sequence ID
