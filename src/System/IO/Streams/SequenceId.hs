@@ -1,7 +1,7 @@
 module System.IO.Streams.SequenceId where
 
 import           Control.Applicative ((<$>))
-import           Data.SequenceId     (SequenceError, SequenceId, checkSeqId,
+import           Data.SequenceId     (SequenceId, SequenceIdError, checkSeqId,
                                       nextSeqId)
 import           System.IO.Streams   (InputStream, OutputStream)
 import qualified System.IO.Streams   as Streams
@@ -17,23 +17,22 @@ import qualified System.IO.Streams   as Streams
 -- [1,2,3,4,5,6,7,8,9,10]
 --
 -- ghci> 'System.IO.Streams.fromList' [5..10 :: 'Data.SequenceId.SequenceId'] >>= 'sequenceIdInputStream' 0 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
--- *** Exception: user error ('Data.SequenceId.SequenceIdDropped' ('Data.SequenceId.SequenceIds' {lastSeqId = 0, currSeqId = 5}))
+-- *** Exception: user error ('Data.SequenceId.SequenceIdError' {errType = 'Data.SequenceId.SequenceIdDropped', lastSeqId = 0, currSeqId = 5})
 --
--- ghci> 'System.IO.Streams.fromList' [5..10 :: 'Data.SequenceId.SequenceId'] >>= 'sequenceIdInputStream' 1 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
--- *** Exception: user error ('Data.SequenceId.SequenceIdDuplicated' ('Data.SequenceId.SequenceIds' {lastSeqId = 1, currSeqId = 1}))
+-- ghci> 'System.IO.Streams.fromList' [1..10 :: 'Data.SequenceId.SequenceId'] >>= 'sequenceIdInputStream' 5 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
+-- *** Exception: user error ('Data.SequenceId.SequenceIdError' {errType = 'Data.SequenceId.SequenceIdDuplicated', lastSeqId = 5, currSeqId = 1})
 -- @
-sequenceIdInputStream :: SequenceId                   -- ^ Initial sequence ID
-                      -> (a -> SequenceId)            -- ^ Function applied to each element of the stream to get the sequence ID
-                      -> (SequenceError -> IO ())     -- ^ Error handler
-                      -> InputStream a                -- ^ 'System.IO.Streams.InputStream' to check the sequence of
-                      -> IO (InputStream a)           -- ^ Pass-through of the given stream
+sequenceIdInputStream :: SequenceId                 -- ^ Initial sequence ID
+                      -> (a -> SequenceId)          -- ^ Function applied to each element of the stream to get the sequence ID
+                      -> (SequenceIdError -> IO ()) -- ^ Error handler
+                      -> InputStream a              -- ^ 'System.IO.Streams.InputStream' to check the sequence of
+                      -> IO (InputStream a)         -- ^ Pass-through of the given stream
 sequenceIdInputStream initSeqId getSeqId seqFaultHandler inStream = fst <$> Streams.inputFoldM f initSeqId inStream
   where
     f lastSeqId x = do
         let currSeqId = getSeqId x
-            check = checkSeqId lastSeqId currSeqId
-        maybe (return ()) seqFaultHandler check
-        return currSeqId
+        maybe (return ()) seqFaultHandler $ checkSeqId lastSeqId currSeqId
+        return $ max currSeqId lastSeqId
 
 
 ------------------------------------------------------------------------------
