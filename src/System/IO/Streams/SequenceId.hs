@@ -2,7 +2,7 @@ module System.IO.Streams.SequenceId where
 
 import           Control.Applicative ((<$>))
 import           Data.SequenceId     (SequenceId, SequenceIdError, checkSeqId,
-                                      nextSeqId)
+                                      incrementSeqId)
 import           System.IO.Streams   (InputStream, OutputStream)
 import qualified System.IO.Streams   as Streams
 
@@ -27,11 +27,12 @@ sequenceIdInputStream :: SequenceId                 -- ^ Initial sequence ID
                       -> (SequenceIdError -> IO ()) -- ^ Error handler
                       -> InputStream a              -- ^ 'System.IO.Streams.InputStream' to check the sequence of
                       -> IO (InputStream a)         -- ^ Pass-through of the given stream
-sequenceIdInputStream initSeqId getSeqId seqFaultHandler inStream = fst <$> Streams.inputFoldM f initSeqId inStream
+sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler inStream =
+    fst <$> Streams.inputFoldM f initSeqId inStream
   where
     f lastSeqId x = do
         let currSeqId = getSeqId x
-        maybe (return ()) seqFaultHandler $ checkSeqId lastSeqId currSeqId
+        maybe (return ()) seqIdFaultHandler $ checkSeqId lastSeqId currSeqId
         return $ max currSeqId lastSeqId
 
 
@@ -48,4 +49,4 @@ sequenceIdOutputStream :: SequenceId                         -- ^ Initial sequen
                        -> OutputStream a                     -- ^ 'System.IO.Streams.OutputStream' to count the elements of
                        -> IO (OutputStream a, IO SequenceId) -- ^ ('IO' 'SequenceId') is the action to run to get the current sequence ID
 sequenceIdOutputStream = Streams.outputFoldM count
-  where count a _ = return $ nextSeqId a
+  where count a _ = return $ incrementSeqId a
