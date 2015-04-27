@@ -1,6 +1,12 @@
-module System.IO.Streams.SequenceId where
+{-# LANGUAGE BangPatterns #-}
+
+module System.IO.Streams.SequenceId
+       ( sequenceIdInputStream
+       , sequenceIdOutputStream
+       ) where
 
 import           Control.Applicative ((<$>))
+import           Data.IORef          (newIORef, readIORef, writeIORef)
 import           Data.SequenceId     (SequenceId, SequenceIdError, checkSeqId,
                                       incrementSeqId)
 import           System.IO.Streams   (InputStream, OutputStream)
@@ -48,5 +54,25 @@ sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler inStream =
 sequenceIdOutputStream :: SequenceId                         -- ^ Initial sequence ID
                        -> OutputStream a                     -- ^ 'System.IO.Streams.OutputStream' to count the elements of
                        -> IO (OutputStream a, IO SequenceId) -- ^ ('IO' 'SequenceId') is the action to run to get the current sequence ID
-sequenceIdOutputStream = Streams.outputFoldM count
+sequenceIdOutputStream = outputFoldM count
   where count a _ = return $ incrementSeqId a
+
+
+outputFoldM :: (a -> b -> IO a)           -- ^ fold function
+            -> a                          -- ^ initial seed
+            -> OutputStream b             -- ^ output stream
+            -> IO (OutputStream b, IO a)  -- ^ returns a new stream as well as
+                                          -- an IO action to fetch the updated
+                                          -- seed value.
+outputFoldM f initial stream = do
+    ref <- newIORef initial
+    os  <- Streams.makeOutputStream (wr ref)
+    return (os, readIORef ref)
+
+  where
+    wr _ Nothing       = Streams.write Nothing stream
+    wr ref mb@(Just x) = do
+        !z  <- readIORef ref
+        !z' <- f z x
+        writeIORef ref z'
+        Streams.write mb stream

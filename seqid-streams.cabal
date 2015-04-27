@@ -1,5 +1,5 @@
 name:                seqid-streams
-version:             0.3.2
+version:             0.3.3
 synopsis:            Sequence ID IO-Streams
 description:         Uniquely identify elements in a sequenced stream
 License:             BSD3
