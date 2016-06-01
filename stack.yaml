@@ -1,0 +1,5 @@
+resolver: nightly-2016-05-31
+flags: {}
+packages:
+  - location: '.'
+extra-deps: []
