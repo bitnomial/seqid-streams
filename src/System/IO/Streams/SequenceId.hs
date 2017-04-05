@@ -28,11 +28,12 @@ import qualified System.IO.Streams   as Streams
 -- ghci> 'System.IO.Streams.fromList' [1..10 :: 'Data.SequenceId.SequenceId'] >>= 'sequenceIdInputStream' 5 'id' ('fail' . 'show') >>= 'System.IO.Streams.toList'
 -- *** Exception: user error ('Data.SequenceId.SequenceIdError' {errType = 'Data.SequenceId.SequenceIdDuplicated', lastSeqId = 5, currSeqId = 1})
 -- @
-sequenceIdInputStream :: SequenceId                 -- ^ Initial sequence ID
-                      -> (a -> SequenceId)          -- ^ Function applied to each element of the stream to get the sequence ID
-                      -> (SequenceIdError -> IO ()) -- ^ Error handler
-                      -> InputStream a              -- ^ 'System.IO.Streams.InputStream' to check the sequence of
-                      -> IO (InputStream a)         -- ^ Pass-through of the given stream
+sequenceIdInputStream
+    :: SequenceId                 -- ^ Initial sequence ID
+    -> (a -> SequenceId)          -- ^ Function applied to each element of the stream to get the sequence ID
+    -> (SequenceIdError -> IO ()) -- ^ Error handler
+    -> InputStream a              -- ^ 'System.IO.Streams.InputStream' to check the sequence of
+    -> IO (InputStream a)         -- ^ Pass-through of the given stream
 sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler inStream =
     fst <$> Streams.inputFoldM f initSeqId inStream
   where
@@ -51,28 +52,28 @@ sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler inStream =
 -- (outStream', getSeqId) <- 'sequenceIdOutputStream' 1 outStream
 -- return $ 'System.IO.Streams.Combinators.contramapM' (addSeqId getSeqId) outStream'
 -- @
-sequenceIdOutputStream :: SequenceId                         -- ^ Initial sequence ID
-                       -> OutputStream a                     -- ^ 'System.IO.Streams.OutputStream' to count the elements of
-                       -> IO (OutputStream a, IO SequenceId) -- ^ ('IO' 'SequenceId') is the action to run to get the current sequence ID
-sequenceIdOutputStream = outputFoldM count
-  where count a _ = return $ incrementSeqId a
+sequenceIdOutputStream
+    :: SequenceId             -- ^ Initial sequence ID
+    -> (SequenceId -> a -> b) -- ^ Transformation function
+    -> OutputStream b         -- ^ 'System.IO.Streams.OutputStream' to count the elements of
+    -> IO (OutputStream a)    -- ^ ('IO' 'SequenceId') is the action to run to get the current sequence ID
+sequenceIdOutputStream i f = outputFoldM f' i
+  where f' seqId bdy = (seqId, f (incrementSeqId seqId) bdy)
 
 
-outputFoldM :: (a -> b -> IO a)           -- ^ fold function
-            -> a                          -- ^ initial seed
-            -> OutputStream b             -- ^ output stream
-            -> IO (OutputStream b, IO a)  -- ^ returns a new stream as well as
-                                          -- an IO action to fetch the updated
-                                          -- seed value.
+outputFoldM
+    :: (a -> b -> (a, c))  -- ^ fold function
+    -> a                   -- ^ initial seed
+    -> OutputStream c      -- ^ output stream
+    -> IO (OutputStream b) -- ^ returns a new stream as well as an IO action to fetch the updated seed value.
 outputFoldM f initial stream = do
     ref <- newIORef initial
-    os  <- Streams.makeOutputStream (wr ref)
-    return (os, readIORef ref)
+    Streams.makeOutputStream (wr ref)
 
   where
-    wr _ Nothing       = Streams.write Nothing stream
-    wr ref mb@(Just x) = do
-        !z  <- readIORef ref
-        !z' <- f z x
+    wr _ Nothing    = Streams.write Nothing stream
+    wr ref (Just x) = do
+        !z <- readIORef ref
+        let (!z', !x') = f z x
         writeIORef ref z'
-        Streams.write mb stream
+        Streams.write (Just x') stream

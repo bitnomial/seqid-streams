@@ -1,5 +1,6 @@
-resolver: nightly-2016-05-31
+resolver: lts-8.0
 flags: {}
 packages:
   - location: '.'
-extra-deps: []
+extra-deps:
+  - seqid-0.5.1
