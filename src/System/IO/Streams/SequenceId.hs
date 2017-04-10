@@ -58,7 +58,8 @@ sequenceIdOutputStream
     -> OutputStream b         -- ^ 'System.IO.Streams.OutputStream' to count the elements of
     -> IO (OutputStream a)    -- ^ ('IO' 'SequenceId') is the action to run to get the current sequence ID
 sequenceIdOutputStream i f = outputFoldM f' i
-  where f' seqId bdy = (seqId, f (incrementSeqId seqId) bdy)
+  where f' seqId bdy = (nextSeqId, f nextSeqId bdy)
+          where nextSeqId = incrementSeqId seqId
 
 
 outputFoldM
@@ -66,14 +67,13 @@ outputFoldM
     -> a                   -- ^ initial seed
     -> OutputStream c      -- ^ output stream
     -> IO (OutputStream b) -- ^ returns a new stream as well as an IO action to fetch the updated seed value.
-outputFoldM f initial stream = do
-    ref <- newIORef initial
+outputFoldM step initSeqId outStream = do
+    ref <- newIORef initSeqId
     Streams.makeOutputStream (wr ref)
-
   where
-    wr _ Nothing    = Streams.write Nothing stream
+    wr _ Nothing    = Streams.write Nothing outStream
     wr ref (Just x) = do
-        !z <- readIORef ref
-        let (!z', !x') = f z x
-        writeIORef ref z'
-        Streams.write (Just x') stream
+        !accum <- readIORef ref
+        let (!accum', !x') = step accum x
+        writeIORef ref accum'
+        Streams.write (Just x') outStream
