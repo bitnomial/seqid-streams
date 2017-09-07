@@ -19,8 +19,8 @@ source-repository head
 library
   exposed-modules: System.IO.Streams.SequenceId
 
-  build-depends: base       >= 4.7 && < 4.10
-               , io-streams >= 1.2 && < 1.4
+  build-depends: base       >= 4.7 && < 4.11
+               , io-streams >= 1.2 && < 1.5
                , seqid      >= 0.4 && < 0.6
 
   hs-source-dirs:      src
