@@ -1,5 +1,5 @@
 name:                seqid-streams
-version:             0.6.3
+version:             0.7.0
 synopsis:            Sequence ID IO-Streams
 description:         Uniquely identify elements in a sequenced stream
 License:             BSD3
@@ -22,7 +22,7 @@ library
 
   build-depends: base       >= 4.7 && < 4.12
                , io-streams >= 1.2 && < 1.6
-               , seqid      >= 0.4 && < 0.6
+               , seqid      >= 0.6 && < 0.7
 
   hs-source-dirs:      src
   default-language:    Haskell2010
