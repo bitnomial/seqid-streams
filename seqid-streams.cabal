@@ -20,7 +20,7 @@ source-repository head
 library
   exposed-modules: System.IO.Streams.SequenceId
 
-  build-depends: base       >= 4.7 && < 4.12
+  build-depends: base       >= 4.7 && < 4.14
                , io-streams >= 1.2 && < 1.6
                , seqid      >= 0.6 && < 0.7
 
