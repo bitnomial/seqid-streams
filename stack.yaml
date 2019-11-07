@@ -1,6 +1,6 @@
 resolver: lts-12.5
 flags: {}
 packages:
-  - location: '.'
+  - '.'
 extra-deps:
   - seqid-0.6.0
