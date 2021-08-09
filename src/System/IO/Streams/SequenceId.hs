@@ -1,12 +1,12 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module System.IO.Streams.SequenceId
        ( sequenceIdInputStream
        , sequenceIdInputStreamWithReset
        , sequenceIdOutputStream
+       , sequenceIdOutputStreamWithReset
        ) where
 
 import           Control.Applicative ((<$>))
