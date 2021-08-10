@@ -20,26 +20,25 @@ import qualified System.IO.Streams   as Streams
 -- Example:
 --
 -- @
--- ghci> import qualified System.IO.Streams as Streams
--- ghci> is <- Streams.fromList [1..10::Int]
--- ghci> (is', resetSeqId) <- sequenceIdInputStream 0 id (fail . show) is
--- ghci> Streams.read is'
+-- ghci> is <- 'System.IO.Streams.fromList' [1..10::Int]
+-- ghci> (is', resetSeqId) <- 'sequenceIdInputStream' 0 id (fail . show) is
+-- ghci> 'System.IO.Streams.read' is'
 -- Just 1
--- ghci> Streams.read is'
+-- ghci> 'System.IO.Streams.read' is'
 -- Just 2
--- ghci> Streams.read is'
+-- ghci> 'System.IO.Streams.read' is'
 -- Just 3
 -- ghci> resetSeqId
 -- 3
--- ghci> Streams.read is'
--- *** Exception: user error (SequenceIdError {errType = SequenceIdDropped, lastSeqId = 0, currSeqId = 4})
+-- ghci> 'System.IO.Streams.read' is'
+-- *** Exception: user error ('Data.SequenceId.SequenceIdError' {errType = 'Data.SequenceId.SequenceIdDropped', lastSeqId = 0, currSeqId = 4})
 -- @
 sequenceIdInputStream :: Integral s
                       => s                            -- ^ Initial sequence ID
                       -> (a -> s)                     -- ^ Function applied to each element of the stream to get the sequence ID
                       -> (SequenceIdError s -> IO ()) -- ^ Error handler
                       -> InputStream a                -- ^ 'System.IO.Streams.InputStream' to check the sequence of
-                      -> IO (InputStream a, IO s)     -- ^ Pass-through of the given stream, and IO action to fetch and reset the seed value
+                      -> IO (InputStream a, IO s)     -- ^ Pass-through of the given stream, and 'IO' action that returns the current sequence id and then resets it to the initial seed
 sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
     Streams.inputFoldM f initSeqId
   where
@@ -55,17 +54,16 @@ sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
 -- Example:
 --
 -- @
--- ghci> import qualified System.IO.Streams as Streams
--- ghci> (os, getList) <- Streams.listOutputStream :: IO (OutputStream (Int,Int), IO [(Int,Int)])
--- ghci> (outStream', getSeqId) <- sequenceIdOutputStream 0 (\seqId a -> (seqId, a)) os
--- ghci> Streams.write (Just 6) outStream'
--- ghci> Streams.write (Just 7) outStream'
+-- ghci> (os, getList) <- 'System.IO.Streams.listOutputStream' :: 'IO' ('System.IO.Streams.OutputStream' ('Int','Int'), 'IO' [('Int','Int')])
+-- ghci> (outStream', getSeqId) <- 'sequenceIdOutputStream' 0 (\seqId a -> (seqId, a)) os
+-- ghci> 'System.IO.Streams.write' (Just 6) outStream'
+-- ghci> 'System.IO.Streams.write' (Just 7) outStream'
 -- ghci> getList
 -- [(1,6),(2,7)]
 -- ghci> getSeqId
 -- 2
--- ghci> Streams.write (Just 6) outStream'
--- ghci> Streams.write (Just 7) outStream'
+-- ghci> 'System.IO.Streams.write' (Just 6) outStream'
+-- ghci> 'System.IO.Streams.write' (Just 7) outStream'
 -- ghci> getList
 -- [(1,6),(2,7)]
 -- @
@@ -73,7 +71,7 @@ sequenceIdOutputStream :: Integral s
                        => s                         -- ^ Initial sequence ID
                        -> (s -> a -> b)             -- ^ Transformation function
                        -> OutputStream b            -- ^ 'System.IO.Streams.OutputStream' to count the elements of
-                       -> IO (OutputStream a, IO s) -- ^ returns a new stream as well as an IO action to fetch and reset the updated seed value
+                       -> IO (OutputStream a, IO s) -- ^ returns a new stream as well as an 'IO' action that returns the current sequence id and then resets it to the initial seed
 sequenceIdOutputStream i f = outputFoldM f' i
   where f' seqId bdy = (nextSeqId, f nextSeqId bdy)
           where nextSeqId = incrementSeqId seqId
