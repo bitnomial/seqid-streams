@@ -41,4 +41,5 @@ test-suite test
     , io-streams >= 1.2 && < 1.6
     , tasty >= 1.2.2
     , tasty-hunit >= 0.10.0.3
+    , seqid
     , seqid-streams

@@ -1,20 +1,25 @@
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import Control.Exception (Exception, throw, try)
 import Data.List
 import Data.Ord
+import Data.SequenceId (SequenceIdError (..), SequenceIdErrorType (..))
 
 import qualified System.IO.Streams as Streams
 import System.IO.Streams.SequenceId (sequenceIdInputStream, sequenceIdOutputStream)
 
 main = defaultMain tests
 
+newtype SeqIdException = SeqIdException (SequenceIdError Int) deriving (Show, Eq)
+instance Exception SeqIdException
+
 tests :: TestTree
 tests = testGroup "seqid-streams tests"
   [ testCase "sequenceIdInputStream can be reset" $ do
 
-    is <- Streams.fromList [1,2,3,1,5 :: Int]
-    (is', resetSeqId) <- sequenceIdInputStream 0 id (fail . show) is
+    is <- Streams.fromList [1,2,3,1,5,2 :: Int]
+    (is', resetSeqId) <- sequenceIdInputStream 0 id (throw . SeqIdException) is
     r1 <- Streams.read is'
     r1 @?= Just 1
 
@@ -35,6 +40,11 @@ tests = testGroup "seqid-streams tests"
 
     r5 <- Streams.read is'
     r5 @?= Just 5
+
+    res <- try (Streams.read is')
+    case res of
+      Left e -> e @?= SeqIdException (SequenceIdError SequenceIdDuplicated 5 2)
+      Right _ -> assertFailure "Streams.read should have failed!"
 
     pure ()
 
