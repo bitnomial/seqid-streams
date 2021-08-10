@@ -22,7 +22,6 @@ import qualified System.IO.Streams   as Streams
 -- @
 -- ghci> import qualified System.IO.Streams as Streams
 -- ghci> is <- Streams.fromList [1..10::Int]
--- ghci> (is', reset) <- sequenceIdInputStream 0 id (fail . show) is
 -- ghci> (is', resetSeqId) <- sequenceIdInputStream 0 id (fail . show) is
 -- ghci> Streams.read is'
 -- Just 1
