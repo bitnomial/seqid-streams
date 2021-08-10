@@ -7,6 +7,7 @@ module System.IO.Streams.SequenceId (
 ) where
 
 import Control.Applicative ((<$>))
+import Data.Foldable (traverse_)
 import Data.IORef (atomicModifyIORef', newIORef, readIORef, writeIORef)
 import Data.SequenceId (
     SequenceIdError,
@@ -55,7 +56,7 @@ sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
   where
     f lastSeqId x = do
         let currSeqId = getSeqId x
-        maybe (return ()) seqIdFaultHandler $ checkSeqId lastSeqId currSeqId
+        traverse_ seqIdFaultHandler $ checkSeqId lastSeqId currSeqId
         return $ max currSeqId lastSeqId
 
 
