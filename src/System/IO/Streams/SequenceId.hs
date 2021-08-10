@@ -35,10 +35,11 @@ import qualified System.IO.Streams   as Streams
 -- @
 sequenceIdInputStream :: Integral s
                       => s                             -- ^ Initial sequence ID
-                      -> (a ->      s)                 -- ^ Function applied to each element of the stream to get the sequence ID
+                      -> (a -> s)                      -- ^ Function applied to each element of the stream to get the sequence ID
                       -> (SequenceIdError s -> IO ())  -- ^ Error handler
                       -> InputStream a                 -- ^ 'System.IO.Streams.InputStream' to check the sequence of
-                      -> IO (InputStream a, s -> IO s) -- ^ Pass-through of the given stream, and 'IO' action that returns the current sequence id and then resets it to the initial seed
+                      -> IO (InputStream a, s -> IO s) -- ^ Pass-through of the given stream, and 'IO' action that returns
+                                                       -- the current sequence id and then resets it to the initial seed
 sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
     inputFoldM f initSeqId
   where
@@ -52,7 +53,8 @@ sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
 inputFoldM :: (a -> b -> IO a)               -- ^ fold function
            -> a                              -- ^ initial seed
            -> InputStream b                  -- ^ input stream
-           -> IO (InputStream b, a -> IO a)  -- ^ returns a new stream as well as an IO action to fetch and reset the updated seed value.
+           -> IO (InputStream b, a -> IO a)  -- ^ returns a new stream as well as an IO action to fetch and reset
+                                             -- the updated seed value.
 inputFoldM f initial stream = do
     ref <- newIORef initial
     is  <- Streams.makeInputStream (rd ref)
@@ -95,7 +97,9 @@ sequenceIdOutputStream :: Integral s
                        => s                              -- ^ Initial sequence ID
                        -> (s -> a -> b)                  -- ^ Transformation function
                        -> OutputStream b                 -- ^ 'System.IO.Streams.OutputStream' to count the elements of
-                       -> IO (OutputStream a, s -> IO s) -- ^ returns a new stream as well as an 'IO' action that returns the current sequence id and then resets it to the initial seed
+                       -> IO (OutputStream a, s -> IO s) -- ^ returns a new stream as well as an 'IO' action that
+                                                         -- returns the current sequence id and then resets it to
+                                                         -- the initial seed
 sequenceIdOutputStream i f = outputFoldM f' i
   where f' seqId bdy = (nextSeqId, f nextSeqId bdy)
           where nextSeqId = incrementSeqId seqId
@@ -106,7 +110,8 @@ outputFoldM :: Integral a
             => (a -> b -> (a, c))             -- ^ fold function
             -> a                              -- ^ initial seed
             -> OutputStream c                 -- ^ output stream
-            -> IO (OutputStream b, a -> IO a) -- ^ returns a new stream as well as an IO action to fetch and reset the updated seed value.
+            -> IO (OutputStream b, a -> IO a) -- ^ returns a new stream as well as an IO action to fetch and
+                                              -- reset the updated seed value.
 outputFoldM step initSeqId outStream = do
     ref <- newIORef initSeqId
     (,fetchAndReset ref) <$> Streams.makeOutputStream (wr ref)
