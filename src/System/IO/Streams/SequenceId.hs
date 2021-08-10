@@ -28,24 +28,48 @@ import qualified System.IO.Streams   as Streams
 -- Just 2
 -- ghci> 'System.IO.Streams.read' is'
 -- Just 3
--- ghci> resetSeqId
+-- ghci> resetSeqId 0
 -- 3
 -- ghci> 'System.IO.Streams.read' is'
 -- *** Exception: user error ('Data.SequenceId.SequenceIdError' {errType = 'Data.SequenceId.SequenceIdDropped', lastSeqId = 0, currSeqId = 4})
 -- @
 sequenceIdInputStream :: Integral s
-                      => s                            -- ^ Initial sequence ID
-                      -> (a -> s)                     -- ^ Function applied to each element of the stream to get the sequence ID
-                      -> (SequenceIdError s -> IO ()) -- ^ Error handler
-                      -> InputStream a                -- ^ 'System.IO.Streams.InputStream' to check the sequence of
-                      -> IO (InputStream a, IO s)     -- ^ Pass-through of the given stream, and 'IO' action that returns the current sequence id and then resets it to the initial seed
+                      => s                             -- ^ Initial sequence ID
+                      -> (a ->      s)                 -- ^ Function applied to each element of the stream to get the sequence ID
+                      -> (SequenceIdError s -> IO ())  -- ^ Error handler
+                      -> InputStream a                 -- ^ 'System.IO.Streams.InputStream' to check the sequence of
+                      -> IO (InputStream a, s -> IO s) -- ^ Pass-through of the given stream, and 'IO' action that returns the current sequence id and then resets it to the initial seed
 sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
-    Streams.inputFoldM f initSeqId
+    inputFoldM f initSeqId
   where
     f lastSeqId x = do
         let currSeqId = getSeqId x
         maybe (return ()) seqIdFaultHandler $ checkSeqId lastSeqId currSeqId
         return $ max currSeqId lastSeqId
+
+
+-- very slightly modified version of Streams.inputFoldM
+inputFoldM :: (a -> b -> IO a)               -- ^ fold function
+           -> a                              -- ^ initial seed
+           -> InputStream b                  -- ^ input stream
+           -> IO (InputStream b, a -> IO a)  -- ^ returns a new stream as well as an IO action to fetch and reset the updated seed value.
+inputFoldM f initial stream = do
+    ref <- newIORef initial
+    is  <- Streams.makeInputStream (rd ref)
+    return (is, fetchAndReset ref)
+
+  where
+    twiddle _ Nothing = return Nothing
+
+    twiddle ref mb@(Just x) = do
+        !z  <- readIORef ref
+        !z' <- f z x
+        writeIORef ref z'
+        return mb
+
+    rd ref = Streams.read stream >>= twiddle ref
+
+    fetchAndReset ref newSeed = atomicModifyIORef' ref (newSeed,)
 
 
 ------------------------------------------------------------------------------
@@ -55,12 +79,12 @@ sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
 --
 -- @
 -- ghci> (os, getList) <- 'System.IO.Streams.listOutputStream' :: 'IO' ('System.IO.Streams.OutputStream' ('Int','Int'), 'IO' [('Int','Int')])
--- ghci> (outStream', getSeqId) <- 'sequenceIdOutputStream' 0 (\seqId a -> (seqId, a)) os
+-- ghci> (outStream', resetSeqId) <- 'sequenceIdOutputStream' 0 (\seqId a -> (seqId, a)) os
 -- ghci> 'System.IO.Streams.write' (Just 6) outStream'
 -- ghci> 'System.IO.Streams.write' (Just 7) outStream'
 -- ghci> getList
 -- [(1,6),(2,7)]
--- ghci> getSeqId
+-- ghci> resetSeqId 0
 -- 2
 -- ghci> 'System.IO.Streams.write' (Just 6) outStream'
 -- ghci> 'System.IO.Streams.write' (Just 7) outStream'
@@ -68,24 +92,24 @@ sequenceIdInputStream initSeqId getSeqId seqIdFaultHandler =
 -- [(1,6),(2,7)]
 -- @
 sequenceIdOutputStream :: Integral s
-                       => s                         -- ^ Initial sequence ID
-                       -> (s -> a -> b)             -- ^ Transformation function
-                       -> OutputStream b            -- ^ 'System.IO.Streams.OutputStream' to count the elements of
-                       -> IO (OutputStream a, IO s) -- ^ returns a new stream as well as an 'IO' action that returns the current sequence id and then resets it to the initial seed
+                       => s                              -- ^ Initial sequence ID
+                       -> (s -> a -> b)                  -- ^ Transformation function
+                       -> OutputStream b                 -- ^ 'System.IO.Streams.OutputStream' to count the elements of
+                       -> IO (OutputStream a, s -> IO s) -- ^ returns a new stream as well as an 'IO' action that returns the current sequence id and then resets it to the initial seed
 sequenceIdOutputStream i f = outputFoldM f' i
   where f' seqId bdy = (nextSeqId, f nextSeqId bdy)
           where nextSeqId = incrementSeqId seqId
 
 
+-- very slightly modified version of Streams.outputFoldM
 outputFoldM :: Integral a
-            => (a -> b -> (a, c))        -- ^ fold function
-            -> a                         -- ^ initial seed
-            -> OutputStream c            -- ^ output stream
-            -> IO (OutputStream b, IO a) -- ^ returns a new stream as well as an IO action to fetch and reset the updated seed value.
+            => (a -> b -> (a, c))             -- ^ fold function
+            -> a                              -- ^ initial seed
+            -> OutputStream c                 -- ^ output stream
+            -> IO (OutputStream b, a -> IO a) -- ^ returns a new stream as well as an IO action to fetch and reset the updated seed value.
 outputFoldM step initSeqId outStream = do
     ref <- newIORef initSeqId
-    let reset = atomicModifyIORef' ref (initSeqId,)
-    (,reset) <$> Streams.makeOutputStream (wr ref)
+    (,fetchAndReset ref) <$> Streams.makeOutputStream (wr ref)
   where
     wr _ Nothing    = Streams.write Nothing outStream
     wr ref (Just x) = do
@@ -93,3 +117,5 @@ outputFoldM step initSeqId outStream = do
         let (!accum', !x') = step accum x
         writeIORef ref accum'
         Streams.write (Just x') outStream
+
+    fetchAndReset ref newSeed = atomicModifyIORef' ref (newSeed,)
