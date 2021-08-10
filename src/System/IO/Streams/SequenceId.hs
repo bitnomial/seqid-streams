@@ -1,7 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 module System.IO.Streams.SequenceId
        ( sequenceIdInputStream
