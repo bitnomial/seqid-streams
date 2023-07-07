@@ -1,6 +1,6 @@
-resolver: lts-17.15
+resolver: lts-21.1
 flags: {}
 packages:
-  - '.'
+  - "."
 extra-deps:
-  - seqid-0.6.2
+  - seqid-0.6.3
